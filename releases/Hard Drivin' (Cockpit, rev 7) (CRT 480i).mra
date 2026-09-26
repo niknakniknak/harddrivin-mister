@@ -1,10 +1,10 @@
 <misterromdescription>
-  <name>Hard Drivin' (Cockpit, rev 7)</name>
+  <name>Hard Drivin' (Cockpit, rev 7) (CRT 480i)</name>
   <setname>harddriv</setname>
   <year>1989</year>
   <manufacturer>Atari Games</manufacturer>
   <category>Racing</category>
-  <rbf>HardDrivin_cockpit</rbf>
+  <rbf>HardDrivinSD</rbf>
   <rotation>horizontal</rotation>
   <buttons default="A,B,X,Y,L,R,Start,Select" names="Gas,Brake,Clutch,Abort,Gear Down,Gear Up,Key,Coin,Gear 1,Gear 2,Gear 3,Gear 4"/>
   <switches default="FF 01">
