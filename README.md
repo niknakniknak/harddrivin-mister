@@ -36,7 +36,7 @@
 > warranty of any kind, and you use it at your own risk: the authors can't be held
 > responsible for damage to your monitor or other equipment.
 >
-> Games: Hard Drivin' (Cockpit, rev 7). The 480i stage is `crt_480i` by Chris Watson (GPL-2.0-or-later). All
+> Games: Hard Drivin' (Cockpit, rev 7). The 480i stage is [`crt_480i`](https://github.com/niknakniknak/crt480i) by Chris Watson (GPL-2.0-or-later). All
 > credit for the core itself goes to Fulviuus; the rest of this README is theirs, unchanged.
 
 ---
