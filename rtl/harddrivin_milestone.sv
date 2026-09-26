@@ -141,6 +141,10 @@ module harddrivin_milestone #(
   output logic        hsync_o,
   output logic        vsync_o,
   output logic [23:0] rgb_o,
+  output logic [10:0] pen_o,          // CRT 480i
+  input  logic [9:0]  pal480_addr_i,
+  output logic [15:0] pal480_lo_o,
+  output logic [15:0] pal480_hi_o,
   output logic [31:0] debug_o,
   input  logic        diagnostic_enable_i,
   input  logic        controls_overlay_i,   // OSD: draw the controls debug overlay
@@ -615,6 +619,7 @@ module harddrivin_milestone #(
     .vram_addr_o(gsp_vram_addr_100), .vram_wdata_o(gsp_vram_wdata_100),
     .vram_rdata_i(gsp_vram_rdata_100), .vram_rdata64_i(gsp_vram_rdata64_100), .vram_ack_i(gsp_vram_ack_100),
     .palette_scan_addr_i(gsp_palette_scan_addr),
+    .palette_480_addr_i(pal480_addr_i), .palette_480_lo_o(pal480_lo_o), .palette_480_hi_o(pal480_hi_o),
     .palette_scan_lo_o(gsp_palette_scan_lo),
     .palette_scan_hi_o(gsp_palette_scan_hi),
     .fine_scroll_o(gsp_fine_scroll),
@@ -1779,7 +1784,7 @@ module harddrivin_milestone #(
     .palette_addr_o(gsp_palette_scan_addr),
     .palette_lo_i(gsp_palette_scan_lo), .palette_hi_i(gsp_palette_scan_hi),
     .ce_pix_o(ce_pix_o), .hsync_o(hsync_o), .vsync_o(vsync_o),
-    .hblank_o(hblank_o), .vblank_o(vblank_o), .rgb_o(rgb_o),
+    .hblank_o(hblank_o), .vblank_o(vblank_o), .rgb_o(rgb_o), .pen_o(pen_o),
     .frame_start_o(frame_start), .refresh_count_o(screen_refresh_count),
     .row_count_o(screen_row_count),
     .loaded_srfaddr_o(screen_loaded_srfaddr),

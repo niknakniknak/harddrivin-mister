@@ -88,6 +88,7 @@ set ika [file join $root rtl ika32010]
 set_global_assignment -name SEARCH_PATH $ika
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $root rtl ika32010 IKA32010.sv]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $root rtl sdram.sv]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $root rtl crt_480i.sv]
 
 # Board integration and top.
 foreach f {

@@ -57,6 +57,9 @@ module harddrivin_gsp_memory
   input  logic              vram_ack_i,
 
   input  logic [9:0]        palette_scan_addr_i,
+  input  logic [9:0]        palette_480_addr_i,   // CRT 480i: mirror palette read
+  output logic [15:0]       palette_480_lo_o,
+  output logic [15:0]       palette_480_hi_o,
   output logic [15:0]       palette_scan_lo_o,
   output logic [15:0]       palette_scan_hi_o,
   output logic [3:0]        fine_scroll_o,
@@ -540,6 +543,20 @@ module harddrivin_gsp_memory
     .rdata_a_o(palette_hi_rdata),
     .clk_b_i(clk_i), .en_b_i(1'b1), .addr_b_i(palette_scan_addr_i),
     .rdata_b_o(palette_scan_hi_o)
+  );
+
+  // CRT 480i: mirrors of the two palette RAMs (same CPU writes), read by the 480i stage.
+  harddrivin_dual_port_word_ram #(.ADDR_WIDTH(10)) u_palette_lo_480 (
+    .clk_a_i(clk_i), .en_a_i(palette_lo_access), .we_a_i(word_write),
+    .addr_a_i(palette_addr), .wdata_a_i(cycle_wdata_i), .rdata_a_o(),
+    .clk_b_i(clk_i), .en_b_i(1'b1), .addr_b_i(palette_480_addr_i),
+    .rdata_b_o(palette_480_lo_o)
+  );
+  harddrivin_dual_port_word_ram #(.ADDR_WIDTH(10)) u_palette_hi_480 (
+    .clk_a_i(clk_i), .en_a_i(palette_hi_access), .we_a_i(word_write),
+    .addr_a_i(palette_addr), .wdata_a_i(cycle_wdata_i), .rdata_a_o(),
+    .clk_b_i(clk_i), .en_b_i(1'b1), .addr_b_i(palette_480_addr_i),
+    .rdata_b_o(palette_480_hi_o)
   );
 
   harddrivin_tms_word_cdc #(.ADDR_W(VRAM_AW), .RDATA_W(64), .WDATA_W(64), .BE_W(8)) u_vram_cdc (

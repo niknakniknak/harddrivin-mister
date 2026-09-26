@@ -12,8 +12,8 @@ module emu (
   assign {UART_RTS, UART_TXD, UART_DTR} = 3'b000;
   assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 
-  assign VGA_F1 = 1'b0;
   assign VGA_SCALER = 1'b0;
+  // VGA_F1 carries the 480i field (video section)
   assign VGA_DISABLE = 1'b0;
   assign HDMI_FREEZE = 1'b0;
   assign HDMI_BLACKOUT = 1'b0;
@@ -36,7 +36,7 @@ module emu (
 
   localparam CONF_STR = {
 `ifdef HD_COCKPIT
-    "Hard Drivin' Cockpit;;",
+    "Hard Drivin' SD;;",
 `else
     "Hard Drivin' Compact (feasibility);;",
 `endif
@@ -58,6 +58,13 @@ module emu (
     "O[2],Aspect ratio,Original 4:3,Raw pixels;",
     "-;",
     "O[3],Service mode (self-test),Off,On;",
+    "-;",
+    "P1,CRT 480i;",
+    "P1-;",
+    "P1O[13:11],Deflicker,Off,Mild,Medium,Medium+,Full;",
+    "P1O[16:14],Height,1:1,200,208,216,224,232,240;",
+    "P1O[22:17],H-Position,0,+1,+2,+3,+4,+5,+6,+7,+8,+9,+10,+11,+12,+13,+14,+15,+16,+17,+18,+19,+20,+21,+22,+23,+24,+25,+26,+27,+28,+29,+30,+31,-32,-31,-30,-29,-28,-27,-26,-25,-24,-23,-22,-21,-20,-19,-18,-17,-16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
+    "P1O[27:23],V-Position,0,+1,+2,+3,+4,+5,+6,+7,+8,+9,+10,+11,+12,+13,+14,+15,-16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
     "-;",
     // Build stamp: bump this for every image handed to hardware so the OSD
     // says which one is loaded.
@@ -258,6 +265,8 @@ module emu (
   wire ce_pix;
   wire hblank, vblank, hsync, vsync;
   wire [23:0] rgb;
+  wire [10:0] pen480, pal480_addr;   // CRT 480i: {blank, palette address}
+  wire [15:0] pal480_lo, pal480_hi;
   wire [31:0] debug;
   wire clk_core;
 
@@ -532,6 +541,7 @@ module emu (
     .clk_50_i(CLK_50M), .rst_i(reset), .clk_core_o(clk_core), .ce_pix_o(ce_pix),
     .hblank_o(hblank), .vblank_o(vblank), .hsync_o(hsync),
     .vsync_o(vsync), .rgb_o(rgb), .debug_o(debug),
+    .pen_o(pen480), .pal480_addr_i(pal480_addr[9:0]), .pal480_lo_o(pal480_lo), .pal480_hi_o(pal480_hi),
     .diagnostic_enable_i(diagnostic_overlay_live),
     .controls_overlay_i(status[4]),
     .analog_axes_i({axis_ry, axis_rx, axis_ly, axis_lx}),
@@ -565,13 +575,67 @@ module emu (
   );
   assign DDRAM_CLK = clk_core;
 
+  // ---- Video outputs, SD build: the native picture never reaches VGA -------------------
+  //   VGA_*    analog: crt_480i only, 15 kHz 480i. sys_top never puts the scaler on VGA in
+  //            this build, and direct_video sends this same stream to HDMI.
+  //   NATIVE_* the HDMI scaler: the native picture through arcade_video, as upstream.
+  //
+  // ---- VGA: CRT 15kHz 480i (crt_480i) ---------------------------------------------------
+  // Re-times the native 508x384 / 25 kHz raster into 525-line 480i. It stores the palette
+  // address plus a blank flag (PW=11) and looks colours up in a mirror of the palette RAM,
+  // so the controls/diagnostic overlays are shown on HDMI only. Output pixels are
+  // 48 MHz / 4.5 (CLK_FRAC: alternately 4 and 5 clocks) = 10.67 MHz, the standard 480i rate,
+  // so the default H_START/HS_PIX apply. It drives the VGA pins directly: it must not go
+  // through arcade_video, which snaps VSync to HSync and would remove the interlace.
+  // status comes from hps_io on CLK_50M and crt_480i runs on clk_core (48 MHz, another PLL):
+  // the 480i menu bits cross through two flops, kept at their status bit numbers.
+  reg [27:11] st480_m, st480;
+  always @(posedge clk_core) begin st480_m <= status[27:11]; st480 <= st480_m; end
+  wire       ce480, i480_field;
+  wire [7:0] i480_r, i480_g, i480_b;
+  wire       i480_hs, i480_vs, i480_de;
+  reg        pal480_blank_d;                 // the flag, aligned with the mirror RAM output
+  always @(posedge clk_core) pal480_blank_d <= pal480_addr[10];
+  wire [23:0] pal480_rgb = pal480_blank_d ? 24'd0 : {pal480_lo[15:8], pal480_lo[7:0], pal480_hi[7:0]};
+
+  crt_480i #(.CLK_HZ(48_000_000), .CLK_DIV(4), .CLK_FRAC(1), .PW(11), .LUT_EXT(1), .LUT_LAT(1)) u_crt480i (   // 48 MHz / 4.5 = 10.67 MHz
+    .clk      (clk_core),
+    .ce_in    (ce_pix),
+    .pix_in   (pen480),
+    .vs_in    (vsync), .de_in(~hblank & ~vblank),
+    .hoffset  ($signed({st480[22], st480[22:17]})),
+    .voffset  ($signed({{2{st480[27]}}, st480[27:23]})),
+    .deflicker(st480[13:11]),
+    .vheight  (st480[16:14]),
+    .lut_addr (pal480_addr),
+    .lut_rgb  (pal480_rgb),
+    .ce_out   (ce480),
+    .r_out    (i480_r), .g_out(i480_g), .b_out(i480_b),
+    .hs_out   (i480_hs), .vs_out(i480_vs), .de_out(i480_de),
+    .hb_out   (), .vb_out(),
+    .field    (i480_field),
+    .locked   ()
+  );
+  assign CLK_VIDEO = clk_core;
+  assign CE_PIXEL  = ce480;
+  assign VGA_R     = i480_r;
+  assign VGA_G     = i480_g;
+  assign VGA_B     = i480_b;
+  assign VGA_HS    = i480_hs;
+  assign VGA_VS    = i480_vs;
+  assign VGA_DE    = i480_de;
+  assign VGA_F1    = i480_field;
+  assign VGA_SL    = 2'd0;
+
+  // ---- HDMI: the native picture ------------------------------------------------------------
+  // arcade_video's scandoubler is for 31 kHz VGA; here its output only feeds the HDMI scaler.
   arcade_video #(.WIDTH(COCKPIT ? 508 : 512), .DW(24), .GAMMA(1)) u_video (
     .clk_video(clk_core), .ce_pix(ce_pix), .RGB_in(rgb),
     .HBlank(hblank), .VBlank(vblank), .HSync(hsync), .VSync(vsync),
-    .CLK_VIDEO(CLK_VIDEO), .CE_PIXEL(CE_PIXEL),
-    .VGA_R(VGA_R), .VGA_G(VGA_G), .VGA_B(VGA_B),
-    .VGA_HS(VGA_HS), .VGA_VS(VGA_VS), .VGA_DE(VGA_DE), .VGA_SL(VGA_SL),
-    .fx(3'd0), .forced_scandoubler(forced_scandoubler), .gamma_bus(gamma_bus)
+    .CLK_VIDEO(), .CE_PIXEL(NATIVE_CE),
+    .VGA_R(NATIVE_R), .VGA_G(NATIVE_G), .VGA_B(NATIVE_B),
+    .VGA_HS(NATIVE_HS), .VGA_VS(NATIVE_VS), .VGA_DE(NATIVE_DE), .VGA_SL(),
+    .fx(3'd0), .forced_scandoubler(1'b0), .gamma_bus(gamma_bus)
   );
 
   assign LED_USER = debug[22] ^ debug[9];

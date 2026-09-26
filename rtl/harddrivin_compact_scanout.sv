@@ -61,6 +61,7 @@ module harddrivin_compact_scanout #(
   output logic        hblank_o,
   output logic        vblank_o,
   output logic [23:0] rgb_o,
+  output logic [10:0] pen_o,     // CRT 480i: {blank, palette address}, aligned with rgb_o
   output logic        frame_start_o,
   output logic [31:0] refresh_count_o,
   output logic [31:0] row_count_o,
@@ -791,6 +792,8 @@ module harddrivin_compact_scanout #(
                       + {7'd0, display_fine_scroll};
   assign pixel_word_addr = {2'b00, pixel_offset[8:1]};
   logic [9:0] palette_addr_q;
+  logic [9:0] pal_addr_d;                    // CRT 480i: palette_addr_o one clock late
+  always_ff @(posedge core_clk_i) pal_addr_d <= palette_addr_o;
   assign palette_addr_o = COCKPIT
     ? {display_palette_bank, pixel_byte_select_q ? row_word_q[15:8] : row_word_q[7:0]}
     : palette_addr_q;
@@ -831,6 +834,7 @@ module harddrivin_compact_scanout #(
       hblank_o           <= 1'b1;
       vblank_o           <= 1'b1;
       rgb_o              <= 24'd0;
+      pen_o              <= 11'd0;
       frame_start_o      <= 1'b0;
       loaded_srfaddr_o   <= 14'd0;
       loaded_org_o       <= 1'b0;
@@ -925,6 +929,7 @@ module harddrivin_compact_scanout #(
           vsync_o   <= captured_vsync_q;
           hblank_o  <= captured_hblank_q;
           vblank_o  <= captured_vblank_q;
+          pen_o <= {captured_blank_q, pal_addr_d};   // the address that produced this rgb_o
           if (captured_blank_q) begin
             rgb_o <= 24'h000000;
 `ifdef HD_VIDEO_DIAGNOSTICS

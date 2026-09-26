@@ -1,3 +1,46 @@
+# Hard Drivin' for MiSTer FPGA: CRT 480i SD build
+
+> **This is a separate 15 kHz build** ("SD": standard definition), for low-res CRTs: TVs, PVMs and 15 kHz arcade
+> monitors. The original core is [Fulviuus's](https://github.com/retrogarage/harddrivin-mister); use that one on multi-sync or
+> 31 kHz VGA monitors.
+>
+> - **Analog output (VGA, and JAMMA adapters): 15 kHz 480i only.** Every line of the
+>   game's 508x384 picture, interlaced, locked to the game's own frame rate. There is no
+>   path for the original 25 kHz picture, so no menu option or `MiSTer.ini` setting can
+>   put 25 kHz on the monitor. Until the picture is locked (about a tenth of a second
+>   after loading) the output is black with no sync.
+> - **HDMI: the normal picture**, as on the original core.
+> - **Menu:** a **CRT 480i** page with Deflicker, Height, H-Position and V-Position.
+>
+> **What's different in this build:**
+> - The analog output carries only 15 kHz 480i. The controls and diagnostic overlays show on
+>   HDMI only.
+> - Built with Quartus Prime 17.0.2 Lite, the version MiSTer standardises on (fitter seed 2,
+>   which meets timing). The original below targets Quartus Lite 24.1.
+>
+> **What you need for the CRT side:**
+>
+> | Item | Requirement |
+> | --- | --- |
+> | Monitor | A 15 kHz CRT that takes standard 480i (60 Hz interlaced): a TV, PVM or 15 kHz arcade monitor. Nearly all do. |
+> | Connection | The MiSTer's analog output: VGA through an analog I/O board or an RGB cable, or a JAMMA adapter |
+> | Sync | Set `composite_sync` in `MiSTer.ini` to suit the cable: most SCART cables and PVMs want `composite_sync=1` |
+> | MiSTer.ini | Nothing else: the scaler and scandoubler settings don't reach the analog output in this build |
+> | Board, SDRAM, ROMs | As for the original core (below) |
+>
+> **Tested on:** Sony PVM, Panasonic CRT TV, Wells-Gardner and Hantarex arcade monitors.
+>
+> **Disclaimer.** Every effort has been made to make this safe for 15 kHz monitors: the
+> analog output has no path for the 25 kHz picture, the source is open for anyone to check,
+> and it has been tested on several 15 kHz monitors. Even so, it is provided as is, without
+> warranty of any kind, and you use it at your own risk: the authors can't be held
+> responsible for damage to your monitor or other equipment.
+>
+> Games: Hard Drivin' (Cockpit, rev 7). The 480i stage is `crt_480i` by Chris Watson (GPL-2.0-or-later). All
+> credit for the core itself goes to Fulviuus; the rest of this README is theirs, unchanged.
+
+---
+
 # Hard Drivin’ for MiSTer
 
 FPGA implementation of Atari’s Hard Drivin’ arcade hardware for the
